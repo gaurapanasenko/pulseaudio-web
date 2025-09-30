@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseAudio Web Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .sink-container {
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .sink-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .sink-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .mute-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .mute-button:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .mute-button.muted {
+            background: #6c757d;
+        }
+
+        .mute-button.muted:hover {
+            background: #5a6268;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .volume-slider {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .volume-display {
+            min-width: 50px;
+            text-align: center;
+            font-weight: 600;
+            color: #495057;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .refresh-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 20px auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .no-sinks, .no-apps {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px;
+        }
+        
+        .app-container {
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .app-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .app-pid {
+            font-size: 0.8em;
+            color: #6c757d;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #6c757d;
+            padding: 40px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading::after {
+            content: '...';
+            animation: pulse 1.5s infinite;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .sink-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .volume-control {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔊 PulseAudio Web Control</h1>
+        
+        <div id="status" class="status disconnected">
+            Connecting to server...
+        </div>
+        
+        <div id="sinks-container">
+            <div class="loading">Loading audio devices</div>
+        </div>
+        
+        <h2 style="margin-top: 30px; color: #333; font-weight: 300;">🎵 Applications</h2>
+        
+        <div id="apps-container">
+            <div class="loading">Loading applications</div>
+        </div>
+        
+        <button id="refresh-button" class="refresh-button" onclick="refreshData()">
+            🔄 Refresh All
+        </button>
+    </div>
+
+    <script>
+        class PulseAudioController {
+            constructor() {
+                this.ws = null;
+                this.reconnectInterval = 3000;
+                this.maxReconnectAttempts = 10;
+                this.reconnectAttempts = 0;
+                this.sinks = [];
+                this.applications = [];
+                this.connect();
+            }
+
+            connect() {
+                try {
+                    this.ws = new WebSocket('ws://localhost:8765');
+                    
+                    this.ws.onopen = () => {
+                        console.log('Connected to WebSocket server');
+                        this.updateStatus('Connected to server', 'connected');
+                        this.reconnectAttempts = 0;
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        this.handleMessage(JSON.parse(event.data));
+                    };
+
+                    this.ws.onclose = () => {
+                        console.log('WebSocket connection closed');
+                        this.updateStatus('Disconnected from server', 'disconnected');
+                        this.attemptReconnect();
+                    };
+
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.updateStatus('Connection error', 'disconnected');
+                    };
+
+                } catch (error) {
+                    console.error('Failed to connect:', error);
+                    this.updateStatus('Failed to connect', 'disconnected');
+                    this.attemptReconnect();
+                }
+            }
+
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    this.updateStatus(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`, 'disconnected');
+                    setTimeout(() => this.connect(), this.reconnectInterval);
+                } else {
+                    this.updateStatus('Connection failed. Please refresh the page.', 'disconnected');
+                }
+            }
+
+            updateStatus(message, className) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${className}`;
+            }
+
+            handleMessage(data) {
+                console.log('Received message:', data);
+                switch (data.type) {
+                    case 'initial_data':
+                        console.log('Initial data received:', data.sinks, data.applications);
+                        this.sinks = data.sinks || [];
+                        this.applications = data.applications || [];
+                        this.renderSinks();
+                        this.renderApplications();
+                        break;
+                    
+                    case 'update':
+                        console.log('Update received:', data);
+                        this.updateSink(data.sink_id, data.volume, data.muted);
+                        break;
+                    
+                    case 'app_update':
+                        console.log('App update received:', data);
+                        this.updateApplication(data.app_id, data.volume, data.muted);
+                        break;
+                    
+                    case 'volume_set':
+                    case 'mute_toggled':
+                    case 'app_volume_set':
+                    case 'app_mute_toggled':
+                        console.log('Response received:', data);
+                        // These are responses to our actions, no need to update UI
+                        break;
+                }
+            }
+
+            renderSinks() {
+                const container = document.getElementById('sinks-container');
+                
+                if (this.sinks.length === 0) {
+                    container.innerHTML = '<div class="no-sinks">No audio devices found</div>';
+                    return;
+                }
+
+                container.innerHTML = this.sinks.map(sink => `
+                    <div class="sink-container" data-sink-id="${sink.id}">
+                        <div class="sink-header">
+                            <div class="sink-name">${this.escapeHtml(sink.name)}</div>
+                            <button class="mute-button ${sink.muted ? 'muted' : ''}" 
+                                    onclick="controller.toggleMute('${sink.id}')">
+                                ${sink.muted ? '🔇 Unmute' : '🔊 Mute'}
+                            </button>
+                        </div>
+                        <div class="volume-control">
+                            <input type="range" 
+                                   class="volume-slider" 
+                                   min="0" 
+                                   max="100" 
+                                   value="${sink.volume}"
+                                   oninput="controller.setVolume('${sink.id}', this.value)"
+                                   ${sink.muted ? 'disabled' : ''}>
+                            <div class="volume-display">${sink.volume}%</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            renderApplications() {
+                const container = document.getElementById('apps-container');
+                
+                if (this.applications.length === 0) {
+                    container.innerHTML = '<div class="no-apps">No applications with audio found</div>';
+                    return;
+                }
+
+                container.innerHTML = this.applications.map(app => `
+                    <div class="app-container" data-app-id="${app.id}">
+                        <div class="app-header">
+                            <div>
+                                <div class="app-name">${this.escapeHtml(app.name)}</div>
+                                <div class="app-pid">PID: ${app.pid}</div>
+                            </div>
+                            <button class="mute-button ${app.muted ? 'muted' : ''}" 
+                                    onclick="controller.toggleAppMute('${app.id}')">
+                                ${app.muted ? '🔇 Unmute' : '🔊 Mute'}
+                            </button>
+                        </div>
+                        <div class="volume-control">
+                            <input type="range" 
+                                   class="volume-slider" 
+                                   min="0" 
+                                   max="100" 
+                                   value="${app.volume}"
+                                   oninput="controller.setAppVolume('${app.id}', this.value)"
+                                   ${app.muted ? 'disabled' : ''}>
+                            <div class="volume-display">${app.volume}%</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            updateSink(sinkId, volume, muted) {
+                console.log(`Updating sink ${sinkId}: volume=${volume}, muted=${muted}`);
+                const sinkContainer = document.querySelector(`[data-sink-id="${sinkId}"]`);
+                if (!sinkContainer) return;
+
+                if (volume !== undefined && volume !== null) {
+                    const slider = sinkContainer.querySelector('.volume-slider');
+                    const display = sinkContainer.querySelector('.volume-display');
+                    slider.value = volume;
+                    display.textContent = `${volume}%`;
+                    console.log(`Set volume display to ${volume}%`);
+                } else {
+                    console.log(`Volume is ${volume}, not updating display`);
+                }
+
+                if (muted !== undefined) {
+                    const muteButton = sinkContainer.querySelector('.mute-button');
+                    const slider = sinkContainer.querySelector('.volume-slider');
+                    
+                    if (muted) {
+                        muteButton.classList.add('muted');
+                        muteButton.textContent = '🔇 Unmute';
+                        slider.disabled = true;
+                    } else {
+                        muteButton.classList.remove('muted');
+                        muteButton.textContent = '🔊 Mute';
+                        slider.disabled = false;
+                    }
+                }
+            }
+
+            updateApplication(appId, volume, muted) {
+                console.log(`Updating app ${appId}: volume=${volume}, muted=${muted}`);
+                const appContainer = document.querySelector(`[data-app-id="${appId}"]`);
+                if (!appContainer) return;
+
+                if (volume !== undefined && volume !== null) {
+                    const slider = appContainer.querySelector('.volume-slider');
+                    const display = appContainer.querySelector('.volume-display');
+                    slider.value = volume;
+                    display.textContent = `${volume}%`;
+                    console.log(`Set app volume display to ${volume}%`);
+                } else {
+                    console.log(`App volume is ${volume}, not updating display`);
+                }
+
+                if (muted !== undefined) {
+                    const muteButton = appContainer.querySelector('.mute-button');
+                    const slider = appContainer.querySelector('.volume-slider');
+                    
+                    if (muted) {
+                        muteButton.classList.add('muted');
+                        muteButton.textContent = '🔇 Unmute';
+                        slider.disabled = true;
+                    } else {
+                        muteButton.classList.remove('muted');
+                        muteButton.textContent = '🔊 Mute';
+                        slider.disabled = false;
+                    }
+                }
+            }
+
+            setVolume(sinkId, volume) {
+                console.log(`Setting volume for sink ${sinkId} to ${volume}%`);
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    const message = {
+                        type: 'set_volume',
+                        sink_id: sinkId,
+                        volume: parseInt(volume)
+                    };
+                    console.log('Sending volume message:', message);
+                    this.ws.send(JSON.stringify(message));
+                } else {
+                    console.error('WebSocket not connected');
+                }
+            }
+
+            toggleMute(sinkId) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'toggle_mute',
+                        sink_id: sinkId
+                    }));
+                }
+            }
+
+            setAppVolume(appId, volume) {
+                console.log(`Setting volume for app ${appId} to ${volume}%`);
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    const message = {
+                        type: 'set_app_volume',
+                        app_id: appId,
+                        volume: parseInt(volume)
+                    };
+                    console.log('Sending app volume message:', message);
+                    this.ws.send(JSON.stringify(message));
+                } else {
+                    console.error('WebSocket not connected');
+                }
+            }
+
+            toggleAppMute(appId) {
+                console.log(`Toggling mute for app ${appId}`);
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'toggle_app_mute',
+                        app_id: appId
+                    }));
+                } else {
+                    console.error('WebSocket not connected');
+                }
+            }
+
+            refresh() {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'refresh'
+                    }));
+                }
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        }
+
+        // Initialize controller
+        const controller = new PulseAudioController();
+
+        // Global function for refresh button
+        function refreshData() {
+            controller.refresh();
+        }
+
+        // Handle page visibility change to reconnect if needed
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && (!controller.ws || controller.ws.readyState === WebSocket.CLOSED)) {
+                controller.connect();
+            }
+        });
+    </script>
+</body>
+</html>
