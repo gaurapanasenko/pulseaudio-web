@@ -261,23 +261,45 @@
         .refresh-button {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
-            border: none;
-            padding: 16px 32px;
-            border-radius: 16px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: 700;
-            margin: 40px auto;
-            display: block;
-            transition: all 0.3s ease;
             box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
-            letter-spacing: 0.02em;
         }
 
         .refresh-button:hover {
             background: linear-gradient(135deg, #059669 0%, #047857 100%);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin: 30px auto;
+            flex-wrap: wrap;
+        }
+
+        .control-button {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            letter-spacing: 0.02em;
+            min-width: 200px;
+        }
+
+        .mode-toggle {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .mode-toggle:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
         }
 
         .no-sinks, .no-apps {
@@ -551,18 +573,29 @@
         
         <div :class="`status ${connectionStatus.class}`" x-text="connectionStatus.message"></div>
         
-        <h2 style="margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🔊 Audio Devices</h2>
+        <div class="control-buttons">
+            <button class="control-button mode-toggle" @click="toggleMode()">
+                <span x-text="simpleMode ? '🔧 Switch to Advanced Mode' : '🎯 Switch to Simple Mode'"></span>
+            </button>
+            <button class="control-button refresh-button" @click="refresh()">
+                🔄 Refresh All
+            </button>
+        </div>
+        
+        <h2 style="margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">
+            <span x-text="simpleMode ? '🎯 Default Audio Device' : '🔊 Audio Devices'"></span>
+        </h2>
         
         <!-- Audio Devices Section -->
-        <div x-show="sinks.length === 0" class="loading">Loading audio devices</div>
-        <template x-for="sink in sinks" :key="sink.id">
+        <div x-show="getVisibleSinks().length === 0" class="loading">Loading audio devices</div>
+        <template x-for="sink in getVisibleSinks()" :key="sink.id">
             <div class="sink-container">
                 <div class="sink-header">
                     <div class="sink-name">
                         <span :class="`status-indicator ${sink.status ? 'status-active' : 'status-inactive'}`"></span>
                         <span x-text="sink.name"></span>
                         <span class="status-label" x-text="sink.status ? 'Active' : 'Inactive'"></span>
-                    </div>
+        </div>
                     <div class="sink-controls">
                         <span x-show="sink.is_default" class="default-sink-indicator">DEFAULT</span>
                         <button x-show="!sink.is_default" 
@@ -588,14 +621,16 @@
                 </div>
             </div>
         </template>
-        <div x-show="sinks.length === 0 && !loading.sinks" class="no-sinks">No audio devices found</div>
+        <div x-show="getVisibleSinks().length === 0 && !loading.sinks" class="no-sinks">
+            <span x-text="simpleMode ? 'No default audio device found' : 'No audio devices found'"></span>
+        </div>
         
-        <h2 style="margin-top: 40px; margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🎵 Applications</h2>
+        <h2 x-show="!simpleMode" style="margin-top: 40px; margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🎵 Applications</h2>
         
         <!-- Applications Section -->
-        <div x-show="applications.length === 0" class="loading">Loading applications</div>
+        <div x-show="!simpleMode && applications.length === 0" class="loading">Loading applications</div>
         <template x-for="app in applications" :key="app.id">
-            <div class="app-container">
+            <div x-show="!simpleMode" class="app-container">
                 <div class="app-header">
                     <div>
                         <div class="app-name">
@@ -608,7 +643,7 @@
                     <button :class="`mute-button ${app.muted ? 'muted' : ''}`" 
                             @click="toggleAppMute(app.id)">
                         <span x-text="app.muted ? '🔇 Unmute' : '🔊 Mute'"></span>
-                    </button>
+        </button>
                 </div>
                 <div style="margin-bottom: 10px;">
                     <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Output:</label>
@@ -632,14 +667,14 @@
                 </div>
             </div>
         </template>
-        <div x-show="applications.length === 0 && !loading.applications" class="no-apps">No applications with audio found</div>
+        <div x-show="!simpleMode && applications.length === 0 && !loading.applications" class="no-apps">No applications with audio found</div>
         
-        <h2 style="margin-top: 40px; margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🎛️ Audio Cards</h2>
+        <h2 x-show="!simpleMode" style="margin-top: 40px; margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🎛️ Audio Cards</h2>
         
         <!-- Audio Cards Section -->
-        <div x-show="cards.length === 0" class="loading">Loading audio cards</div>
+        <div x-show="!simpleMode && cards.length === 0" class="loading">Loading audio cards</div>
         <template x-for="card in cards" :key="card.id">
-            <div class="card-container">
+            <div x-show="!simpleMode" class="card-container">
                 <div class="card-header">
                     <div>
                         <div class="card-name" x-text="card.name"></div>
@@ -660,11 +695,7 @@
                 </div>
             </div>
         </template>
-        <div x-show="cards.length === 0 && !loading.cards" class="no-cards">No audio cards found</div>
-        
-        <button class="refresh-button" @click="refresh()">
-            🔄 Refresh All
-        </button>
+        <div x-show="!simpleMode && cards.length === 0 && !loading.cards" class="no-cards">No audio cards found</div>
     </div>
 
     <script>
@@ -702,6 +733,9 @@
                 
                 // Throttling for volume changes
                 volumeThrottleTimers: {},
+                
+                // UI mode toggle
+                simpleMode: true,
 
                 init() {
                     this.connect();
@@ -982,19 +1016,19 @@
                 }
                 },
 
-                setAppVolume(appId, volume) {
-                    console.log(`Setting volume for app ${appId} to ${volume}%`);
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        const message = {
-                            type: 'set_app_volume',
-                            app_id: appId,
-                            volume: parseInt(volume)
-                        };
-                        console.log('Sending app volume message:', message);
-                        this.ws.send(JSON.stringify(message));
-                    } else {
-                        console.error('WebSocket not connected');
-                    }
+            setAppVolume(appId, volume) {
+                console.log(`Setting volume for app ${appId} to ${volume}%`);
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    const message = {
+                        type: 'set_app_volume',
+                        app_id: appId,
+                        volume: parseInt(volume)
+                    };
+                    console.log('Sending app volume message:', message);
+                    this.ws.send(JSON.stringify(message));
+                } else {
+                    console.error('WebSocket not connected');
+                }
                 },
 
                 setAppVolumeThrottled(appId, volume) {
@@ -1065,7 +1099,19 @@
                         type: 'refresh'
                     }));
                 }
-            }
+                },
+
+                toggleMode() {
+                    this.simpleMode = !this.simpleMode;
+                },
+
+                getVisibleSinks() {
+                    if (this.simpleMode) {
+                        // In simple mode, only show the default sink
+                        return this.sinks.filter(sink => sink.is_default);
+                    }
+                    return this.sinks;
+                }
             }
         }
     </script>
