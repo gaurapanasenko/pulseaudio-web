@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PulseAudio Web Control</title>
+    <!--
+    PulseAudio Web Control Frontend
+    A modern web interface for controlling PulseAudio volume, applications, and audio cards
+    -->
     <style>
         * {
             margin: 0;
@@ -154,6 +158,29 @@
             border-radius: 8px;
             border: 1px solid #dee2e6;
         }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .status-active {
+            background: #28a745;
+            box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+        }
+        
+        .status-inactive {
+            background: #6c757d;
+        }
+        
+        .status-label {
+            font-size: 0.7em;
+            color: #6c757d;
+            margin-left: 4px;
+        }
 
         .refresh-button {
             background: #28a745;
@@ -207,6 +234,129 @@
             background: #e9ecef;
             padding: 2px 8px;
             border-radius: 12px;
+        }
+        
+        
+        .default-sink-indicator {
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .set-default-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        
+        .set-default-button:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+        
+        .set-default-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .sink-selector {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.8em;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+        
+        .sink-selector:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+        }
+        
+        .sink-selector:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        
+        .profile-selector {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.8em;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .profile-selector:hover {
+            border-color: #28a745;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+        }
+        
+        .profile-selector:focus {
+            outline: none;
+            border-color: #28a745;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+        }
+
+        .card-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .card-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .card-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .current-profile {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 500;
         }
 
         .loading {
@@ -267,20 +417,32 @@
             <div class="loading">Loading applications</div>
         </div>
         
+        <h2 style="margin-top: 30px; color: #333; font-weight: 300;">🎛️ Audio Cards</h2>
+        
+        <div id="cards-container">
+            <div class="loading">Loading audio cards</div>
+        </div>
+        
         <button id="refresh-button" class="refresh-button" onclick="refreshData()">
             🔄 Refresh All
         </button>
     </div>
 
     <script>
+        /**
+         * PulseAudio Web Control Frontend Controller
+         * Handles WebSocket communication and UI updates for PulseAudio control
+         */
         class PulseAudioController {
             constructor() {
                 this.ws = null;
                 this.reconnectInterval = 3000;
                 this.maxReconnectAttempts = 10;
                 this.reconnectAttempts = 0;
-                this.sinks = [];
-                this.applications = [];
+                this.sinkIds = [];
+                this.appIds = [];
+                this.cardIds = [];
+                this.lightData = {sinks: {}, applications: {}, cards: {}};
                 this.connect();
             }
 
@@ -335,171 +497,388 @@
             handleMessage(data) {
                 console.log('Received message:', data);
                 switch (data.type) {
-                    case 'initial_data':
-                        console.log('Initial data received:', data.sinks, data.applications);
-                        this.sinks = data.sinks || [];
-                        this.applications = data.applications || [];
-                        this.renderSinks();
-                        this.renderApplications();
+                    case 'list_update':
+                        console.log('List update received:', data);
+                        this.handleListUpdate(data.ids);
                         break;
                     
-                    case 'update':
-                        console.log('Update received:', data);
-                        this.updateSink(data.sink_id, data.volume, data.muted);
+                    case 'light_data_update':
+                        console.log('Light data update received:', data);
+                        this.handleLightDataUpdate(data.data);
                         break;
                     
-                    case 'app_update':
-                        console.log('App update received:', data);
-                        this.updateApplication(data.app_id, data.volume, data.muted);
+                    case 'detailed_data':
+                        console.log('Detailed data received:', data);
+                        this.handleDetailedData(data.data);
                         break;
                     
-                    case 'volume_set':
-                    case 'mute_toggled':
-                    case 'app_volume_set':
-                    case 'app_mute_toggled':
-                        console.log('Response received:', data);
-                        // These are responses to our actions, no need to update UI
-                        break;
+                    
                 }
             }
 
             renderSinks() {
                 const container = document.getElementById('sinks-container');
                 
-                if (this.sinks.length === 0) {
+                if (this.sinkIds.length === 0) {
                     container.innerHTML = '<div class="no-sinks">No audio devices found</div>';
                     return;
                 }
+                
+                // Sort sink IDs by internal ID (numeric)
+                const sortedSinkIds = [...this.sinkIds].sort((a, b) => parseInt(a) - parseInt(b));
+                
+                container.innerHTML = sortedSinkIds.map(sinkId => {
+                    const sinkData = this.lightData.sinks[sinkId];
+                    if (!sinkData) {
+                        return `<div class="sink-container" data-sink-id="${sinkId}">
+                            <div class="sink-header">
+                                <div class="sink-name">Loading...</div>
+                            </div>
+                        </div>`;
+                    }
 
-                container.innerHTML = this.sinks.map(sink => `
-                    <div class="sink-container" data-sink-id="${sink.id}">
-                        <div class="sink-header">
-                            <div class="sink-name">${this.escapeHtml(sink.name)}</div>
-                            <button class="mute-button ${sink.muted ? 'muted' : ''}" 
-                                    onclick="controller.toggleMute('${sink.id}')">
-                                ${sink.muted ? '🔇 Unmute' : '🔊 Mute'}
-                            </button>
+                    const name = sinkData.name || `Sink ${sinkId}`;
+                    const volume = sinkData.volume || 0;
+                    const muted = sinkData.muted || false;
+                    const isDefault = sinkData.is_default || false;
+                    const status = sinkData.status || false;
+                    const statusClass = status ? 'status-active' : 'status-inactive';
+                    const statusText = status ? 'Active' : 'Inactive';
+
+                    return `
+                        <div class="sink-container" data-sink-id="${sinkId}">
+                            <div class="sink-header">
+                                <div class="sink-name">
+                                    <span class="status-indicator ${statusClass}" data-sink-id="${sinkId}"></span>
+                                    ${this.escapeHtml(name)}
+                                    ${isDefault ? '<span class="default-sink-indicator">DEFAULT</span>' : ''}
+                                    <span class="status-label" data-sink-id="${sinkId}">${statusText}</span>
+                                </div>
+                                <div>
+                                    ${!isDefault ? '<button class="set-default-button" onclick="controller.setDefaultSink(\'' + sinkId + '\')">Set Default</button>' : ''}
+                                    <button class="mute-button ${muted ? 'muted' : ''}" 
+                                            onclick="controller.toggleMute('${sinkId}')">
+                                        ${muted ? '🔇 Unmute' : '🔊 Mute'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="volume-control">
+                                <input type="range" 
+                                       class="volume-slider" 
+                                       min="0" 
+                                       max="100" 
+                                       value="${volume}"
+                                       oninput="controller.setVolume('${sinkId}', this.value)"
+                                       ${muted ? 'disabled' : ''}>
+                                <div class="volume-display">${volume}%</div>
+                            </div>
                         </div>
-                        <div class="volume-control">
-                            <input type="range" 
-                                   class="volume-slider" 
-                                   min="0" 
-                                   max="100" 
-                                   value="${sink.volume}"
-                                   oninput="controller.setVolume('${sink.id}', this.value)"
-                                   ${sink.muted ? 'disabled' : ''}>
-                            <div class="volume-display">${sink.volume}%</div>
+                    `;
+                }).join('');
+            }
+
+            renderCards() {
+                const container = document.getElementById('cards-container');
+                
+                if (this.cardIds.length === 0) {
+                    container.innerHTML = '<div class="no-cards">No audio cards found</div>';
+                    return;
+                }
+
+                // Sort card IDs by internal ID (numeric)
+                const sortedCardIds = [...this.cardIds].sort((a, b) => parseInt(a) - parseInt(b));
+
+                container.innerHTML = sortedCardIds.map(cardId => {
+                    const cardData = this.lightData.cards[cardId];
+                    if (!cardData) {
+                        return `<div class="card-container" data-card-id="${cardId}">
+                            <div class="card-header">
+                                <div class="card-name">Loading...</div>
+                            </div>
+                        </div>`;
+                    }
+
+                    const name = cardData.name || `Card ${cardId}`;
+                    const description = cardData.description || '';
+                    const currentProfile = cardData.current_profile || '';
+                    const profiles = cardData.profiles || [];
+
+                    return `
+                        <div class="card-container" data-card-id="${cardId}">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-name">${this.escapeHtml(name)}</div>
+                                    <div class="card-description">${this.escapeHtml(description)}</div>
+                                </div>
+                                <div class="current-profile">${this.escapeHtml(currentProfile)}</div>
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Profile:</label>
+                                <select class="profile-selector" data-card-id="${cardId}" onchange="controller.setCardProfile('${cardId}', this.value)">
+                                    ${(profiles && Array.isArray(profiles) && profiles.length > 0) ? 
+                                        profiles.map(profile => 
+                                            `<option value="${profile.name}" ${profile.name === currentProfile ? 'selected' : ''}>${this.escapeHtml(profile.description || profile.name)}</option>`
+                                        ).join('') : 
+                                        '<option value="">No profiles available</option>'
+                                    }
+                                </select>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             renderApplications() {
                 const container = document.getElementById('apps-container');
                 
-                if (this.applications.length === 0) {
+                if (this.appIds.length === 0) {
                     container.innerHTML = '<div class="no-apps">No applications with audio found</div>';
                     return;
                 }
 
-                container.innerHTML = this.applications.map(app => `
-                    <div class="app-container" data-app-id="${app.id}">
-                        <div class="app-header">
-                            <div>
-                                <div class="app-name">${this.escapeHtml(app.name)}</div>
-                                <div class="app-pid">PID: ${app.pid}</div>
+                // Sort app IDs by internal ID (numeric)
+                const sortedAppIds = [...this.appIds].sort((a, b) => parseInt(a) - parseInt(b));
+
+                container.innerHTML = sortedAppIds.map(appId => {
+                    const appData = this.lightData.applications[appId];
+                    if (!appData) {
+                        return `<div class="app-container" data-app-id="${appId}">
+                            <div class="app-header">
+                                <div class="app-name">Loading...</div>
                             </div>
-                            <button class="mute-button ${app.muted ? 'muted' : ''}" 
-                                    onclick="controller.toggleAppMute('${app.id}')">
-                                ${app.muted ? '🔇 Unmute' : '🔊 Mute'}
-                            </button>
+                        </div>`;
+                    }
+
+                    const name = appData.name || `App ${appId}`;
+                    const pid = appData.pid || 'Unknown';
+                    const volume = appData.volume || 0;
+                    const muted = appData.muted || false;
+                    const sinkId = appData.sink_id || '';
+                    const status = appData.status || false;
+                    const statusClass = status ? 'status-active' : 'status-inactive';
+                    const statusText = status ? 'Active' : 'Inactive';
+
+                    return `
+                        <div class="app-container" data-app-id="${appId}">
+                            <div class="app-header">
+                                <div>
+                                    <div class="app-name">
+                                        <span class="status-indicator ${statusClass}" data-app-id="${appId}"></span>
+                                        ${this.escapeHtml(name)}
+                                        <span class="status-label" data-app-id="${appId}">${statusText}</span>
+                                    </div>
+                                    <div class="app-pid">PID: ${pid}</div>
+                                </div>
+                                <button class="mute-button ${muted ? 'muted' : ''}" 
+                                        onclick="controller.toggleAppMute('${appId}')">
+                                    ${muted ? '🔇 Unmute' : '🔊 Mute'}
+                                </button>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Output:</label>
+                                <select class="sink-selector" data-app-id="${appId}" onchange="controller.moveAppToSink('${appId}', this.value)">
+                                    ${this.sinkIds.map(sinkId => {
+                                        const sinkData = this.lightData.sinks[sinkId];
+                                        const sinkName = sinkData?.name || `Sink ${sinkId}`;
+                                        return `<option value="${sinkId}" ${sinkId === sinkId ? 'selected' : ''}>${this.escapeHtml(sinkName)}</option>`;
+                                    }).join('')}
+                                </select>
+                            </div>
+                            <div class="volume-control">
+                                <input type="range" 
+                                       class="volume-slider" 
+                                       min="0" 
+                                       max="100" 
+                                       value="${volume}"
+                                       oninput="controller.setAppVolume('${appId}', this.value)"
+                                       ${muted ? 'disabled' : ''}>
+                                <div class="volume-display">${volume}%</div>
+                            </div>
                         </div>
-                        <div class="volume-control">
-                            <input type="range" 
-                                   class="volume-slider" 
-                                   min="0" 
-                                   max="100" 
-                                   value="${app.volume}"
-                                   oninput="controller.setAppVolume('${app.id}', this.value)"
-                                   ${app.muted ? 'disabled' : ''}>
-                            <div class="volume-display">${app.volume}%</div>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
-            updateSink(sinkId, volume, muted) {
-                console.log(`Updating sink ${sinkId}: volume=${volume}, muted=${muted}`);
-                const sinkContainer = document.querySelector(`[data-sink-id="${sinkId}"]`);
-                if (!sinkContainer) return;
 
-                if (volume !== undefined && volume !== null) {
-                    const slider = sinkContainer.querySelector('.volume-slider');
-                    const display = sinkContainer.querySelector('.volume-display');
-                    slider.value = volume;
-                    display.textContent = `${volume}%`;
-                    console.log(`Set volume display to ${volume}%`);
+
+
+
+
+            handleListUpdate(ids) {
+                // Check if this is the first list update (no IDs stored yet)
+                const isFirstUpdate = this.sinkIds.length === 0 && this.appIds.length === 0 && this.cardIds.length === 0;
+                
+                if (isFirstUpdate) {
+                    // First list update - request detailed data for all IDs
+                    console.log('First list update received, requesting detailed data for all IDs');
+                    this.requestDetailedData(ids.sinks || [], ids.applications || [], ids.cards || []);
                 } else {
-                    console.log(`Volume is ${volume}, not updating display`);
-                }
-
-                if (muted !== undefined) {
-                    const muteButton = sinkContainer.querySelector('.mute-button');
-                    const slider = sinkContainer.querySelector('.volume-slider');
+                    // Check for new IDs that we don't have in our current lists
+                    const unknownSinkIds = ids.sinks.filter(id => !this.sinkIds.includes(id));
+                    const unknownAppIds = ids.applications.filter(id => !this.appIds.includes(id));
+                    const unknownCardIds = ids.cards.filter(id => !this.cardIds.includes(id));
                     
-                    if (muted) {
-                        muteButton.classList.add('muted');
-                        muteButton.textContent = '🔇 Unmute';
-                        slider.disabled = true;
-                    } else {
-                        muteButton.classList.remove('muted');
-                        muteButton.textContent = '🔊 Mute';
-                        slider.disabled = false;
+                    // Request detailed data for new IDs
+                    if (unknownSinkIds.length > 0 || unknownAppIds.length > 0 || unknownCardIds.length > 0) {
+                        console.log(`Requesting detailed data for: ${unknownSinkIds.length} sinks, ${unknownAppIds.length} apps, ${unknownCardIds.length} cards`);
+                        this.requestDetailedData(unknownSinkIds, unknownAppIds, unknownCardIds);
                     }
                 }
+                
+                // Update our ID lists
+                this.sinkIds = ids.sinks || [];
+                this.appIds = ids.applications || [];
+                this.cardIds = ids.cards || [];
+                
+                // Re-render to reflect any changes
+                this.renderSinks();
+                this.renderApplications();
+                this.renderCards();
             }
 
-            updateApplication(appId, volume, muted) {
-                console.log(`Updating app ${appId}: volume=${volume}, muted=${muted}`);
-                const appContainer = document.querySelector(`[data-app-id="${appId}"]`);
-                if (!appContainer) return;
-
-                if (volume !== undefined && volume !== null) {
-                    const slider = appContainer.querySelector('.volume-slider');
-                    const display = appContainer.querySelector('.volume-display');
-                    slider.value = volume;
-                    display.textContent = `${volume}%`;
-                    console.log(`Set app volume display to ${volume}%`);
-                } else {
-                    console.log(`App volume is ${volume}, not updating display`);
+            handleLightDataUpdate(data) {
+                // Update light data (volumes, mute states, status)
+                if (data.sinks) {
+                    for (const [sinkId, sinkData] of Object.entries(data.sinks)) {
+                        // Merge with existing data to preserve any detailed information
+                        if (this.lightData.sinks[sinkId]) {
+                            this.lightData.sinks[sinkId] = { ...this.lightData.sinks[sinkId], ...sinkData };
+                        } else {
+                            this.lightData.sinks[sinkId] = sinkData;
+                        }
+                    }
                 }
+                if (data.applications) {
+                    for (const [appId, appData] of Object.entries(data.applications)) {
+                        // Merge with existing data to preserve any detailed information
+                        if (this.lightData.applications[appId]) {
+                            this.lightData.applications[appId] = { ...this.lightData.applications[appId], ...appData };
+                        } else {
+                            this.lightData.applications[appId] = appData;
+                        }
+                    }
+                }
+                if (data.cards) {
+                    for (const [cardId, cardData] of Object.entries(data.cards)) {
+                        // Merge with existing data to preserve any detailed information
+                        if (this.lightData.cards[cardId]) {
+                            this.lightData.cards[cardId] = { ...this.lightData.cards[cardId], ...cardData };
+                        } else {
+                            this.lightData.cards[cardId] = cardData;
+                        }
+                    }
+                }
+                
+                // Update status indicators from merged data
+                this.updateStatusFromLightData(data);
+                
+                // Re-render to show updated data
+                this.renderSinks();
+                this.renderApplications();
+                this.renderCards();
+            }
 
-                if (muted !== undefined) {
-                    const muteButton = appContainer.querySelector('.mute-button');
-                    const slider = appContainer.querySelector('.volume-slider');
-                    
-                    if (muted) {
-                        muteButton.classList.add('muted');
-                        muteButton.textContent = '🔇 Unmute';
-                        slider.disabled = true;
-                    } else {
-                        muteButton.classList.remove('muted');
-                        muteButton.textContent = '🔊 Mute';
-                        slider.disabled = false;
+            handleDetailedData(data) {
+                // Update light data with detailed information
+                if (data.sinks) {
+                    for (const [sinkId, sinkData] of Object.entries(data.sinks)) {
+                        // Merge with existing data to preserve any light data updates
+                        if (this.lightData.sinks[sinkId]) {
+                            this.lightData.sinks[sinkId] = { ...this.lightData.sinks[sinkId], ...sinkData };
+                        } else {
+                            this.lightData.sinks[sinkId] = sinkData;
+                        }
+                    }
+                }
+                if (data.applications) {
+                    for (const [appId, appData] of Object.entries(data.applications)) {
+                        // Merge with existing data to preserve any light data updates
+                        if (this.lightData.applications[appId]) {
+                            this.lightData.applications[appId] = { ...this.lightData.applications[appId], ...appData };
+                        } else {
+                            this.lightData.applications[appId] = appData;
+                        }
+                    }
+                }
+                if (data.cards) {
+                    for (const [cardId, cardData] of Object.entries(data.cards)) {
+                        // Merge with existing data to preserve any light data updates
+                        if (this.lightData.cards[cardId]) {
+                            this.lightData.cards[cardId] = { ...this.lightData.cards[cardId], ...cardData };
+                        } else {
+                            this.lightData.cards[cardId] = cardData;
+                        }
+                    }
+                }
+                
+                console.log('Detailed data received and merged');
+                
+                // Re-render to show updated data
+                this.renderSinks();
+                this.renderApplications();
+                this.renderCards();
+            }
+
+            requestDetailedData(sinkIds, appIds, cardIds) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'request_detailed_data',
+                        sink_ids: sinkIds,
+                        app_ids: appIds,
+                        card_ids: cardIds
+                    }));
+                }
+            }
+
+            updateStatusFromLightData(data) {
+                // Update sink status indicators from light data
+                if (data.sinks) {
+                    for (const [sinkId, sinkData] of Object.entries(data.sinks)) {
+                        if (sinkData.status !== undefined) {
+                            const indicator = document.querySelector(`[data-sink-id="${sinkId}"].status-indicator`);
+                            const label = document.querySelector(`[data-sink-id="${sinkId}"].status-label`);
+                            
+                            if (indicator && label) {
+                                if (sinkData.status) {
+                                    indicator.className = 'status-indicator status-active';
+                                    label.textContent = 'Active';
+                                } else {
+                                    indicator.className = 'status-indicator status-inactive';
+                                    label.textContent = 'Inactive';
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Update application status indicators from light data
+                if (data.applications) {
+                    for (const [appId, appData] of Object.entries(data.applications)) {
+                        if (appData.status !== undefined) {
+                            const indicator = document.querySelector(`[data-app-id="${appId}"].status-indicator`);
+                            const label = document.querySelector(`[data-app-id="${appId}"].status-label`);
+                            
+                            if (indicator && label) {
+                                if (appData.status) {
+                                    indicator.className = 'status-indicator status-active';
+                                    label.textContent = 'Active';
+                                } else {
+                                    indicator.className = 'status-indicator status-inactive';
+                                    label.textContent = 'Inactive';
+                                }
+                            }
+                        }
                     }
                 }
             }
 
             setVolume(sinkId, volume) {
-                console.log(`Setting volume for sink ${sinkId} to ${volume}%`);
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    const message = {
+                    this.ws.send(JSON.stringify({
                         type: 'set_volume',
                         sink_id: sinkId,
                         volume: parseInt(volume)
-                    };
-                    console.log('Sending volume message:', message);
-                    this.ws.send(JSON.stringify(message));
+                    }));
                 } else {
                     console.error('WebSocket not connected');
                 }
@@ -535,6 +914,44 @@
                     this.ws.send(JSON.stringify({
                         type: 'toggle_app_mute',
                         app_id: appId
+                    }));
+                } else {
+                    console.error('WebSocket not connected');
+                }
+            }
+
+            setDefaultSink(sinkId) {
+                console.log(`Setting default sink to ${sinkId}`);
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'set_default_sink',
+                        sink_id: sinkId
+                    }));
+                } else {
+                    console.error('WebSocket not connected');
+                }
+            }
+
+            moveAppToSink(appId, sinkId) {
+                console.log(`Moving app ${appId} to sink ${sinkId}`);
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'move_app_to_sink',
+                        app_id: appId,
+                        sink_id: sinkId
+                    }));
+                } else {
+                    console.error('WebSocket not connected');
+                }
+            }
+
+
+            setCardProfile(cardId, profileName) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'set_card_profile',
+                        card_id: cardId,
+                        profile_name: profileName
                     }));
                 } else {
                     console.error('WebSocket not connected');
