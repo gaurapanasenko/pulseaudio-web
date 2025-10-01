@@ -18,188 +18,266 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
             min-height: 100vh;
             padding: 20px;
+            color: #2d3748;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            font-weight: 300;
+            color: #1a202c;
+            margin-bottom: 40px;
+            font-size: 2.8em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
         }
 
         .status {
             text-align: center;
-            margin-bottom: 30px;
-            padding: 10px;
-            border-radius: 10px;
-            font-weight: 500;
+            margin-bottom: 40px;
+            padding: 16px 24px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 0.95em;
+            letter-spacing: 0.01em;
+            transition: all 0.3s ease;
         }
 
         .status.connected {
-            background: #d4edda;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
             color: #155724;
-            border: 1px solid #c3e6cb;
+            border: 2px solid #b8dacc;
+            box-shadow: 0 4px 12px rgba(21, 87, 36, 0.1);
         }
 
         .status.disconnected {
-            background: #f8d7da;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
             color: #721c24;
-            border: 1px solid #f5c6cb;
+            border: 2px solid #f1b0b7;
+            box-shadow: 0 4px 12px rgba(114, 28, 36, 0.1);
         }
 
         .sink-container {
-            margin-bottom: 30px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            border: 1px solid #e9ecef;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sink-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .sink-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .sink-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 16px;
         }
 
         .sink-name {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #495057;
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1a202c;
+            line-height: 1.4;
+            flex: 1;
+        }
+
+        .sink-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .mute-button {
-            background: #dc3545;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
             border: none;
             padding: 8px 16px;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.8em;
+            font-weight: 600;
             transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+            letter-spacing: 0.01em;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .mute-button:hover {
-            background: #c82333;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
 
         .mute-button.muted {
-            background: #6c757d;
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
         }
 
         .mute-button.muted:hover {
-            background: #5a6268;
+            background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
         }
 
         .volume-control {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 20px;
+            margin-top: 8px;
         }
 
         .volume-slider {
             flex: 1;
-            height: 8px;
-            border-radius: 4px;
-            background: #ddd;
+            height: 10px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e0 100%);
             outline: none;
             -webkit-appearance: none;
             appearance: none;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
+            border: 3px solid white;
         }
 
         .volume-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: scale(1.15);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5), 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
         .volume-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .volume-display {
-            min-width: 50px;
+            min-width: 60px;
             text-align: center;
-            font-weight: 600;
-            color: #495057;
-            background: white;
-            padding: 5px 10px;
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
+            font-weight: 700;
+            color: #1a202c;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            font-size: 0.9em;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         .status-indicator {
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 6px;
+            margin-right: 8px;
+            position: relative;
         }
         
         .status-active {
-            background: #28a745;
-            box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6), 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-active::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
         }
         
         .status-inactive {
-            background: #6c757d;
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         .status-label {
-            font-size: 0.7em;
-            color: #6c757d;
-            margin-left: 4px;
+            font-size: 0.75em;
+            color: #6b7280;
+            margin-left: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .refresh-button {
-            background: #28a745;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 10px;
+            padding: 16px 32px;
+            border-radius: 16px;
             cursor: pointer;
-            font-size: 1em;
-            margin: 20px auto;
+            font-size: 1.1em;
+            font-weight: 700;
+            margin: 40px auto;
             display: block;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+            letter-spacing: 0.02em;
         }
 
         .refresh-button:hover {
-            background: #218838;
-            transform: translateY(-2px);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
         }
 
         .no-sinks, .no-apps {
@@ -210,155 +288,221 @@
         }
         
         .app-container {
-            margin-bottom: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            border: 1px solid #e9ecef;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .app-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         
         .app-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 16px;
         }
         
         .app-name {
-            font-size: 1.1em;
-            font-weight: 600;
-            color: #495057;
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1a202c;
+            line-height: 1.4;
+            flex: 1;
         }
         
         .app-pid {
             font-size: 0.8em;
-            color: #6c757d;
-            background: #e9ecef;
-            padding: 2px 8px;
+            color: #6b7280;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 4px 10px;
             border-radius: 12px;
+            font-weight: 600;
+            border: 1px solid #cbd5e0;
+            margin-top: 4px;
         }
         
         
         .default-sink-indicator {
-            background: #28a745;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
-            padding: 4px 8px;
+            padding: 8px 16px;
             border-radius: 12px;
-            font-size: 0.7em;
+            font-size: 0.8em;
             font-weight: 600;
-            margin-left: 10px;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.01em;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .set-default-button {
-            background: #007bff;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
             border: none;
-            padding: 6px 12px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 0.8em;
+            font-weight: 600;
             transition: all 0.3s ease;
-            margin-left: 10px;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+            letter-spacing: 0.01em;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .set-default-button:hover {
-            background: #0056b3;
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
         
         .set-default-button:disabled {
-            background: #6c757d;
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
             cursor: not-allowed;
             transform: none;
+            box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2);
         }
         
         .sink-selector {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 0.8em;
-            color: #495057;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            color: #1a202c;
             cursor: pointer;
             transition: all 0.3s ease;
-            min-width: 150px;
+            min-width: 160px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         .sink-selector:hover {
-            border-color: #007bff;
-            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            transform: translateY(-1px);
         }
         
         .sink-selector:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
         
         .profile-selector {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 0.8em;
-            color: #495057;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            color: #1a202c;
             cursor: pointer;
             transition: all 0.3s ease;
-            min-width: 120px;
+            min-width: 140px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         .profile-selector:hover {
-            border-color: #28a745;
-            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+            border-color: #10b981;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+            transform: translateY(-1px);
         }
         
         .profile-selector:focus {
             outline: none;
-            border-color: #28a745;
-            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+            border-color: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
 
         .card-container {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(226, 232, 240, 0.8);
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+            border-radius: 20px 20px 0 0;
         }
 
         .card-container:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 16px;
         }
 
         .card-name {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #333;
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1a202c;
+            line-height: 1.4;
         }
 
         .card-description {
             font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
+            color: #6b7280;
+            margin-top: 6px;
+            font-weight: 500;
         }
 
         .current-profile {
-            background: #e3f2fd;
-            color: #1976d2;
-            padding: 5px 10px;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            padding: 8px 16px;
             border-radius: 20px;
             font-size: 0.8em;
-            font-weight: 500;
+            font-weight: 700;
+            border: 2px solid #93c5fd;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .loading {
@@ -407,6 +551,8 @@
         
         <div :class="`status ${connectionStatus.class}`" x-text="connectionStatus.message"></div>
         
+        <h2 style="margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🔊 Audio Devices</h2>
+        
         <!-- Audio Devices Section -->
         <div x-show="sinks.length === 0" class="loading">Loading audio devices</div>
         <template x-for="sink in sinks" :key="sink.id">
@@ -415,10 +561,10 @@
                     <div class="sink-name">
                         <span :class="`status-indicator ${sink.status ? 'status-active' : 'status-inactive'}`"></span>
                         <span x-text="sink.name"></span>
-                        <span x-show="sink.is_default" class="default-sink-indicator">DEFAULT</span>
                         <span class="status-label" x-text="sink.status ? 'Active' : 'Inactive'"></span>
-        </div>
-                    <div>
+                    </div>
+                    <div class="sink-controls">
+                        <span x-show="sink.is_default" class="default-sink-indicator">DEFAULT</span>
                         <button x-show="!sink.is_default" 
                                 class="set-default-button" 
                                 @click="setDefaultSink(sink.id)">
@@ -444,7 +590,7 @@
         </template>
         <div x-show="sinks.length === 0 && !loading.sinks" class="no-sinks">No audio devices found</div>
         
-        <h2 style="margin-top: 30px; color: #333; font-weight: 300;">🎵 Applications</h2>
+        <h2 style="margin-top: 40px; margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🎵 Applications</h2>
         
         <!-- Applications Section -->
         <div x-show="applications.length === 0" class="loading">Loading applications</div>
@@ -488,7 +634,7 @@
         </template>
         <div x-show="applications.length === 0 && !loading.applications" class="no-apps">No applications with audio found</div>
         
-        <h2 style="margin-top: 30px; color: #333; font-weight: 300;">🎛️ Audio Cards</h2>
+        <h2 style="margin-top: 40px; margin-bottom: 24px; color: #1a202c; font-weight: 700; font-size: 1.8em; letter-spacing: -0.01em;">🎛️ Audio Cards</h2>
         
         <!-- Audio Cards Section -->
         <div x-show="cards.length === 0" class="loading">Loading audio cards</div>
