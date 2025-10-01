@@ -15,10 +15,25 @@ import signal
 import sys
 import time
 import pulsectl
+import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def parse_arguments():
+    """Parse command line arguments for host and port configuration"""
+    parser = argparse.ArgumentParser(description='PulseAudio Web Control Server')
+    parser.add_argument('--host', default='0.0.0.0', 
+                       help='Host to bind the servers to (default: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=8080,
+                       help='Port for HTTP server (default: 8080). WebSocket will use port + 685')
+    args = parser.parse_args()
+    
+    # Calculate WebSocket port as HTTP port + 685
+    args.ws_port = args.port + 685
+    
+    return args
 
 class PulseAudioController:
     """Controller for PulseAudio volume operations using pulsectl"""
@@ -742,17 +757,17 @@ class WebSocketHandler:
 # Global WebSocket handler instance
 ws_handler = WebSocketHandler()
 
-async def websocket_server():
+async def websocket_server(host, port):
     """Start the WebSocket server"""
-    logger.info("Starting WebSocket server on localhost:8765")
+    logger.info(f"Starting WebSocket server on {host}:{port}")
     
     # Start auto monitoring task
     auto_monitoring_task = asyncio.create_task(ws_handler.start_auto_monitoring())
     
-    async with websockets.serve(ws_handler.handle_client, "localhost", 8765):
+    async with websockets.serve(ws_handler.handle_client, host, port):
         await asyncio.Future()  # Run forever
 
-def start_http_server():
+def start_http_server(host, port):
     """Start the HTTP server for serving static files"""
     class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -766,8 +781,8 @@ def start_http_server():
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
             super().end_headers()
     
-    httpd = HTTPServer(('localhost', 8089), CustomHTTPRequestHandler)
-    logger.info("Starting HTTP server on localhost:8089")
+    httpd = HTTPServer((host, port), CustomHTTPRequestHandler)
+    logger.info(f"Starting HTTP server on {host}:{port}")
     httpd.serve_forever()
 
 def signal_handler(signum, frame):
@@ -777,16 +792,19 @@ def signal_handler(signum, frame):
 
 async def main():
     """Main function to start both servers"""
+    # Parse command line arguments
+    args = parse_arguments()
+    
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
     # Start HTTP server in a separate thread
-    http_thread = Thread(target=start_http_server, daemon=True)
+    http_thread = Thread(target=start_http_server, args=(args.host, args.port), daemon=True)
     http_thread.start()
     
     # Start WebSocket server
-    await websocket_server()
+    await websocket_server(args.host, args.ws_port)
 
 if __name__ == "__main__":
     try:

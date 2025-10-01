@@ -750,7 +750,12 @@
 
             connect() {
                 try {
-                    this.ws = new WebSocket('ws://localhost:8765');
+                    // Dynamically determine WebSocket URL based on current page
+                    const currentHost = window.location.hostname;
+                    const currentPort = parseInt(window.location.port);
+                    // WebSocket port is typically HTTP port + 685 (8080 + 685 = 8765)
+                    const wsPort = currentPort + 685;
+                    this.ws = new WebSocket(`ws://${currentHost}:${wsPort}`);
                     
                     this.ws.onopen = () => {
                         console.log('Connected to WebSocket server');
