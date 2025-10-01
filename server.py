@@ -28,10 +28,19 @@ def parse_arguments():
                        help='Host to bind the servers to (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8080,
                        help='Port for HTTP server (default: 8080). WebSocket will use port + 685')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                       help='Enable verbose logging (DEBUG level)')
     args = parser.parse_args()
     
     # Calculate WebSocket port as HTTP port + 685
     args.ws_port = args.port + 685
+    
+    # Configure logging level based on verbose flag
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.info("Verbose logging enabled")
+    else:
+        logging.getLogger().setLevel(logging.INFO)
     
     return args
 
@@ -162,14 +171,14 @@ class PulseAudioController:
             volume_ratio = volume_percent / 100.0
             volume_ratio = max(0.0, min(1.0, volume_ratio))  # Clamp to 0-1 range
             
-            logger.info(f"Setting sink {sink_id} volume to {volume_percent}% (ratio: {volume_ratio})")
+            logger.debug(f"Setting sink {sink_id} volume to {volume_percent}% (ratio: {volume_ratio})")
             
             # Create PulseVolumeInfo object for all channels
             volume_info = pulsectl.PulseVolumeInfo(volume_ratio, len(sink.volume.values))
             
             # Set volume using pulsectl method
             self.pulse.volume_set(sink, volume_info)
-            logger.info(f"Successfully set sink {sink_id} volume")
+            logger.debug(f"Successfully set sink {sink_id} volume")
             
             # Invalidate cache since we modified the sink
             self._sink_cache.clear()
@@ -251,14 +260,14 @@ class PulseAudioController:
             volume_ratio = volume_percent / 100.0
             volume_ratio = max(0.0, min(1.0, volume_ratio))  # Clamp to 0-1 range
             
-            logger.info(f"Setting app {app_id} volume to {volume_percent}% (ratio: {volume_ratio})")
+            logger.debug(f"Setting app {app_id} volume to {volume_percent}% (ratio: {volume_ratio})")
             
             # Create PulseVolumeInfo object for all channels
             volume_info = pulsectl.PulseVolumeInfo(volume_ratio, len(app.volume.values))
             
             # Set volume using pulsectl method
             self.pulse.volume_set(app, volume_info)
-            logger.info(f"Successfully set app {app_id} volume")
+            logger.debug(f"Successfully set app {app_id} volume")
             
             # Invalidate cache since we modified the app
             self._app_cache.clear()
@@ -303,7 +312,7 @@ class PulseAudioController:
         try:
             # Set as default sink
             self.pulse.sink_default_set(sink)
-            logger.info(f"Set sink {sink_id} ({sink.name}) as default")
+            logger.debug(f"Set sink {sink_id} ({sink.name}) as default")
             return True
         except Exception as e:
             logger.error(f"Failed to set default sink: {e}")
@@ -329,7 +338,7 @@ class PulseAudioController:
             
             # Move application to target sink
             self.pulse.sink_input_move(app.index, target_sink.index)
-            logger.info(f"Moved application {app_id} to sink {sink_id} ({target_sink.name})")
+            logger.debug(f"Moved application {app_id} to sink {sink_id} ({target_sink.name})")
             return True
         except Exception as e:
             logger.error(f"Failed to move application to sink: {e}")
@@ -390,7 +399,7 @@ class PulseAudioController:
             for profile in card.profile_list:
                 if profile.name == profile_name:
                     self.pulse.card_profile_set(card, profile)
-                    logger.info(f"Set card {card_id} profile to {profile_name}")
+                    logger.debug(f"Set card {card_id} profile to {profile_name}")
                     return True
             
             logger.error(f"Profile {profile_name} not found for card {card_id}")
@@ -586,7 +595,7 @@ class WebSocketHandler:
     async def register_client(self, websocket):
         """Register a new WebSocket client"""
         self.clients.add(websocket)
-        logger.info(f"Client connected. Total clients: {len(self.clients)}")
+        logger.debug(f"Client connected. Total clients: {len(self.clients)}")
         
         # Force an update by clearing change tracking so new client gets data
         self.controller._last_sink_data.clear()
@@ -599,7 +608,7 @@ class WebSocketHandler:
     async def unregister_client(self, websocket):
         """Unregister a WebSocket client"""
         self.clients.discard(websocket)
-        logger.info(f"Client disconnected. Total clients: {len(self.clients)}")
+        logger.debug(f"Client disconnected. Total clients: {len(self.clients)}")
     
     
     

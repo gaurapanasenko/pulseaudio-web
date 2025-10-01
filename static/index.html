@@ -734,6 +734,9 @@
                 // Throttling for volume changes
                 volumeThrottleTimers: {},
                 
+                // Pending detailed data requests
+                pendingDetailedRequests: [],
+                
                 // UI mode toggle
                 simpleMode: true,
 
@@ -743,24 +746,41 @@
                     // Handle page visibility change to reconnect if needed
                     document.addEventListener('visibilitychange', () => {
                         if (!document.hidden && (!this.ws || this.ws.readyState === WebSocket.CLOSED)) {
-                this.connect();
-            }
+                            console.log('Page became visible and WebSocket is closed, attempting to reconnect');
+                            this.connect();
+                        }
                     });
                 },
 
             connect() {
+                // Check if we already have an active connection
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    console.log('WebSocket already connected, skipping connection attempt');
+                    return;
+                }
+                
+                // Check if we're already connecting
+                if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+                    console.log('WebSocket connection already in progress, skipping connection attempt');
+                    return;
+                }
+                
                 try {
                     // Dynamically determine WebSocket URL based on current page
                     const currentHost = window.location.hostname;
                     const currentPort = parseInt(window.location.port);
                     // WebSocket port is typically HTTP port + 685 (8080 + 685 = 8765)
                     const wsPort = currentPort + 685;
+                    console.log(`Attempting to connect to WebSocket at ws://${currentHost}:${wsPort}`);
                     this.ws = new WebSocket(`ws://${currentHost}:${wsPort}`);
                     
                     this.ws.onopen = () => {
                         console.log('Connected to WebSocket server');
                         this.updateStatus('Connected to server', 'connected');
                         this.reconnectAttempts = 0;
+                        
+                        // Process any pending detailed data requests
+                        this.processPendingDetailedRequests();
                     };
 
                     this.ws.onmessage = (event) => {
@@ -789,9 +809,11 @@
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     this.updateStatus(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`, 'disconnected');
+                    console.log(`Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${this.reconnectInterval}ms`);
                     setTimeout(() => this.connect(), this.reconnectInterval);
                 } else {
                     this.updateStatus('Connection failed. Please refresh the page.', 'disconnected');
+                    console.log('Max reconnection attempts reached, giving up');
                 }
                 },
 
@@ -821,7 +843,7 @@
                 },
 
             handleListUpdate(ids) {
-                    // Check if this is the first list update
+                // Check if this is the first list update
                 const isFirstUpdate = this.sinkIds.length === 0 && this.appIds.length === 0 && this.cardIds.length === 0;
                 
                 if (isFirstUpdate) {
@@ -830,14 +852,16 @@
                     this.requestDetailedData(ids.sinks || [], ids.applications || [], ids.cards || []);
                 } else {
                     // Check for new IDs that we don't have in our current lists
-                    const unknownSinkIds = ids.sinks.filter(id => !this.sinkIds.includes(id));
-                    const unknownAppIds = ids.applications.filter(id => !this.appIds.includes(id));
-                    const unknownCardIds = ids.cards.filter(id => !this.cardIds.includes(id));
+                    const unknownSinkIds = (ids.sinks || []).filter(id => !this.sinkIds.includes(id));
+                    const unknownAppIds = (ids.applications || []).filter(id => !this.appIds.includes(id));
+                    const unknownCardIds = (ids.cards || []).filter(id => !this.cardIds.includes(id));
                     
                     // Request detailed data for new IDs
                     if (unknownSinkIds.length > 0 || unknownAppIds.length > 0 || unknownCardIds.length > 0) {
                         console.log(`Requesting detailed data for: ${unknownSinkIds.length} sinks, ${unknownAppIds.length} apps, ${unknownCardIds.length} cards`);
                         this.requestDetailedData(unknownSinkIds, unknownAppIds, unknownCardIds);
+                    } else {
+                        console.log('No new IDs found, skipping detailed data request');
                     }
                 }
                 
@@ -976,13 +1000,35 @@
                 },
 
             requestDetailedData(sinkIds, appIds, cardIds) {
+                const request = {
+                    type: 'request_detailed_data',
+                    sink_ids: sinkIds,
+                    app_ids: appIds,
+                    card_ids: cardIds
+                };
+                
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(JSON.stringify({
-                        type: 'request_detailed_data',
-                        sink_ids: sinkIds,
-                        app_ids: appIds,
-                        card_ids: cardIds
-                    }));
+                    console.log('Sending detailed data request:', request);
+                    this.ws.send(JSON.stringify(request));
+                } else {
+                    console.log('WebSocket not ready, queuing detailed data request:', request);
+                    this.pendingDetailedRequests.push(request);
+                }
+                },
+
+            processPendingDetailedRequests() {
+                if (this.pendingDetailedRequests.length > 0) {
+                    console.log(`Processing ${this.pendingDetailedRequests.length} pending detailed data requests`);
+                    for (const request of this.pendingDetailedRequests) {
+                        console.log('Sending pending detailed data request:', request);
+                        this.ws.send(JSON.stringify(request));
+                    }
+                    this.pendingDetailedRequests = [];
+                } else if (this.sinkIds.length > 0 || this.appIds.length > 0 || this.cardIds.length > 0) {
+                    // If we have IDs but no pending requests, we might need to re-request detailed data
+                    // This can happen if the connection was lost and we need to refresh the data
+                    console.log('Connection re-established, re-requesting detailed data for existing IDs');
+                    this.requestDetailedData(this.sinkIds, this.appIds, this.cardIds);
                 }
                 },
 
@@ -1108,6 +1154,7 @@
 
                 toggleMode() {
                     this.simpleMode = !this.simpleMode;
+                    this.updateReactiveArrays();
                 },
 
                 getVisibleSinks() {
