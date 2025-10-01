@@ -8,6 +8,8 @@
     PulseAudio Web Control Frontend
     A modern web interface for controlling PulseAudio volume, applications, and audio cards
     -->
+    <!-- Alpine.js for reactive state management -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -399,52 +401,172 @@
         }
     </style>
 </head>
-<body>
+<body x-data="pulseAudioApp()" x-init="init()">
     <div class="container">
         <h1>🔊 PulseAudio Web Control</h1>
         
-        <div id="status" class="status disconnected">
-            Connecting to server...
-        </div>
+        <div :class="`status ${connectionStatus.class}`" x-text="connectionStatus.message"></div>
         
-        <div id="sinks-container">
-            <div class="loading">Loading audio devices</div>
+        <!-- Audio Devices Section -->
+        <div x-show="sinks.length === 0" class="loading">Loading audio devices</div>
+        <template x-for="sink in sinks" :key="sink.id">
+            <div class="sink-container">
+                <div class="sink-header">
+                    <div class="sink-name">
+                        <span :class="`status-indicator ${sink.status ? 'status-active' : 'status-inactive'}`"></span>
+                        <span x-text="sink.name"></span>
+                        <span x-show="sink.is_default" class="default-sink-indicator">DEFAULT</span>
+                        <span class="status-label" x-text="sink.status ? 'Active' : 'Inactive'"></span>
         </div>
+                    <div>
+                        <button x-show="!sink.is_default" 
+                                class="set-default-button" 
+                                @click="setDefaultSink(sink.id)">
+                            Set Default
+                        </button>
+                        <button :class="`mute-button ${sink.muted ? 'muted' : ''}`" 
+                                @click="toggleMute(sink.id)">
+                            <span x-text="sink.muted ? '🔇 Unmute' : '🔊 Mute'"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="volume-control">
+                    <input type="range" 
+                           class="volume-slider" 
+                           min="0" 
+                           max="100" 
+                           :value="sink.volume"
+                           :disabled="sink.muted"
+                           @input="setVolumeThrottled(sink.id, $event.target.value)">
+                    <div class="volume-display" x-text="`${sink.volume}%`"></div>
+                </div>
+            </div>
+        </template>
+        <div x-show="sinks.length === 0 && !loading.sinks" class="no-sinks">No audio devices found</div>
         
         <h2 style="margin-top: 30px; color: #333; font-weight: 300;">🎵 Applications</h2>
         
-        <div id="apps-container">
-            <div class="loading">Loading applications</div>
+        <!-- Applications Section -->
+        <div x-show="applications.length === 0" class="loading">Loading applications</div>
+        <template x-for="app in applications" :key="app.id">
+            <div class="app-container">
+                <div class="app-header">
+                    <div>
+                        <div class="app-name">
+                            <span :class="`status-indicator ${app.status ? 'status-active' : 'status-inactive'}`"></span>
+                            <span x-text="app.name"></span>
+                            <span class="status-label" x-text="app.status ? 'Active' : 'Inactive'"></span>
         </div>
+                        <div class="app-pid" x-text="`PID: ${app.pid}`"></div>
+                    </div>
+                    <button :class="`mute-button ${app.muted ? 'muted' : ''}`" 
+                            @click="toggleAppMute(app.id)">
+                        <span x-text="app.muted ? '🔇 Unmute' : '🔊 Mute'"></span>
+                    </button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Output:</label>
+                    <select class="sink-selector" 
+                            :value="app.sink_id" 
+                            @change="moveAppToSink(app.id, $event.target.value)">
+                        <template x-for="sink in sinks" :key="sink.id">
+                            <option :value="sink.id" x-text="sink.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="volume-control">
+                    <input type="range" 
+                           class="volume-slider" 
+                           min="0" 
+                           max="100" 
+                           :value="app.volume"
+                           :disabled="app.muted"
+                           @input="setAppVolumeThrottled(app.id, $event.target.value)">
+                    <div class="volume-display" x-text="`${app.volume}%`"></div>
+                </div>
+            </div>
+        </template>
+        <div x-show="applications.length === 0 && !loading.applications" class="no-apps">No applications with audio found</div>
         
         <h2 style="margin-top: 30px; color: #333; font-weight: 300;">🎛️ Audio Cards</h2>
         
-        <div id="cards-container">
-            <div class="loading">Loading audio cards</div>
+        <!-- Audio Cards Section -->
+        <div x-show="cards.length === 0" class="loading">Loading audio cards</div>
+        <template x-for="card in cards" :key="card.id">
+            <div class="card-container">
+                <div class="card-header">
+                    <div>
+                        <div class="card-name" x-text="card.name"></div>
+                        <div class="card-description" x-text="card.description"></div>
         </div>
+                    <div class="current-profile" x-text="card.current_profile"></div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Profile:</label>
+                    <select class="profile-selector" 
+                            :value="card.current_profile" 
+                            @change="setCardProfile(card.id, $event.target.value)">
+                        <template x-for="profile in card.profiles" :key="profile.name">
+                            <option :value="profile.name" x-text="profile.description || profile.name"></option>
+                        </template>
+                        <option x-show="!card.profiles || card.profiles.length === 0" value="">No profiles available</option>
+                    </select>
+                </div>
+            </div>
+        </template>
+        <div x-show="cards.length === 0 && !loading.cards" class="no-cards">No audio cards found</div>
         
-        <button id="refresh-button" class="refresh-button" onclick="refreshData()">
+        <button class="refresh-button" @click="refresh()">
             🔄 Refresh All
         </button>
     </div>
 
     <script>
         /**
-         * PulseAudio Web Control Frontend Controller
-         * Handles WebSocket communication and UI updates for PulseAudio control
+         * PulseAudio Web Control Frontend - Alpine.js Reactive Implementation
+         * Handles WebSocket communication and reactive UI updates for PulseAudio control
          */
-        class PulseAudioController {
-            constructor() {
-                this.ws = null;
-                this.reconnectInterval = 3000;
-                this.maxReconnectAttempts = 10;
-                this.reconnectAttempts = 0;
-                this.sinkIds = [];
-                this.appIds = [];
-                this.cardIds = [];
-                this.lightData = {sinks: {}, applications: {}, cards: {}};
+        function pulseAudioApp() {
+            return {
+                // Reactive state
+                ws: null,
+                connectionStatus: {
+                    message: 'Connecting to server...',
+                    class: 'disconnected'
+                },
+                sinks: [],
+                applications: [],
+                cards: [],
+                loading: {
+                    sinks: true,
+                    applications: true,
+                    cards: true
+                },
+                
+                // WebSocket connection settings
+                reconnectInterval: 3000,
+                maxReconnectAttempts: 10,
+                reconnectAttempts: 0,
+                
+                // Data tracking
+                sinkIds: [],
+                appIds: [],
+                cardIds: [],
+                lightData: {sinks: {}, applications: {}, cards: {}},
+                
+                // Throttling for volume changes
+                volumeThrottleTimers: {},
+
+                init() {
+                    this.connect();
+                    
+                    // Handle page visibility change to reconnect if needed
+                    document.addEventListener('visibilitychange', () => {
+                        if (!document.hidden && (!this.ws || this.ws.readyState === WebSocket.CLOSED)) {
                 this.connect();
             }
+                    });
+                },
 
             connect() {
                 try {
@@ -476,7 +598,7 @@
                     this.updateStatus('Failed to connect', 'disconnected');
                     this.attemptReconnect();
                 }
-            }
+                },
 
             attemptReconnect() {
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -486,13 +608,12 @@
                 } else {
                     this.updateStatus('Connection failed. Please refresh the page.', 'disconnected');
                 }
-            }
+                },
 
             updateStatus(message, className) {
-                const statusEl = document.getElementById('status');
-                statusEl.textContent = message;
-                statusEl.className = `status ${className}`;
-            }
+                    this.connectionStatus.message = message;
+                    this.connectionStatus.class = className;
+                },
 
             handleMessage(data) {
                 console.log('Received message:', data);
@@ -511,201 +632,11 @@
                         console.log('Detailed data received:', data);
                         this.handleDetailedData(data.data);
                         break;
-                    
-                    
-                }
-            }
-
-            renderSinks() {
-                const container = document.getElementById('sinks-container');
-                
-                if (this.sinkIds.length === 0) {
-                    container.innerHTML = '<div class="no-sinks">No audio devices found</div>';
-                    return;
-                }
-                
-                // Sort sink IDs by internal ID (numeric)
-                const sortedSinkIds = [...this.sinkIds].sort((a, b) => parseInt(a) - parseInt(b));
-                
-                container.innerHTML = sortedSinkIds.map(sinkId => {
-                    const sinkData = this.lightData.sinks[sinkId];
-                    if (!sinkData) {
-                        return `<div class="sink-container" data-sink-id="${sinkId}">
-                            <div class="sink-header">
-                                <div class="sink-name">Loading...</div>
-                            </div>
-                        </div>`;
                     }
-
-                    const name = sinkData.name || `Sink ${sinkId}`;
-                    const volume = sinkData.volume || 0;
-                    const muted = sinkData.muted || false;
-                    const isDefault = sinkData.is_default || false;
-                    const status = sinkData.status || false;
-                    const statusClass = status ? 'status-active' : 'status-inactive';
-                    const statusText = status ? 'Active' : 'Inactive';
-
-                    return `
-                        <div class="sink-container" data-sink-id="${sinkId}">
-                            <div class="sink-header">
-                                <div class="sink-name">
-                                    <span class="status-indicator ${statusClass}" data-sink-id="${sinkId}"></span>
-                                    ${this.escapeHtml(name)}
-                                    ${isDefault ? '<span class="default-sink-indicator">DEFAULT</span>' : ''}
-                                    <span class="status-label" data-sink-id="${sinkId}">${statusText}</span>
-                                </div>
-                                <div>
-                                    ${!isDefault ? '<button class="set-default-button" onclick="controller.setDefaultSink(\'' + sinkId + '\')">Set Default</button>' : ''}
-                                    <button class="mute-button ${muted ? 'muted' : ''}" 
-                                            onclick="controller.toggleMute('${sinkId}')">
-                                        ${muted ? '🔇 Unmute' : '🔊 Mute'}
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="volume-control">
-                                <input type="range" 
-                                       class="volume-slider" 
-                                       min="0" 
-                                       max="100" 
-                                       value="${volume}"
-                                       oninput="controller.setVolume('${sinkId}', this.value)"
-                                       ${muted ? 'disabled' : ''}>
-                                <div class="volume-display">${volume}%</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            renderCards() {
-                const container = document.getElementById('cards-container');
-                
-                if (this.cardIds.length === 0) {
-                    container.innerHTML = '<div class="no-cards">No audio cards found</div>';
-                    return;
-                }
-
-                // Sort card IDs by internal ID (numeric)
-                const sortedCardIds = [...this.cardIds].sort((a, b) => parseInt(a) - parseInt(b));
-
-                container.innerHTML = sortedCardIds.map(cardId => {
-                    const cardData = this.lightData.cards[cardId];
-                    if (!cardData) {
-                        return `<div class="card-container" data-card-id="${cardId}">
-                            <div class="card-header">
-                                <div class="card-name">Loading...</div>
-                            </div>
-                        </div>`;
-                    }
-
-                    const name = cardData.name || `Card ${cardId}`;
-                    const description = cardData.description || '';
-                    const currentProfile = cardData.current_profile || '';
-                    const profiles = cardData.profiles || [];
-
-                    return `
-                        <div class="card-container" data-card-id="${cardId}">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-name">${this.escapeHtml(name)}</div>
-                                    <div class="card-description">${this.escapeHtml(description)}</div>
-                                </div>
-                                <div class="current-profile">${this.escapeHtml(currentProfile)}</div>
-                            </div>
-                            <div style="margin-top: 15px;">
-                                <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Profile:</label>
-                                <select class="profile-selector" data-card-id="${cardId}" onchange="controller.setCardProfile('${cardId}', this.value)">
-                                    ${(profiles && Array.isArray(profiles) && profiles.length > 0) ? 
-                                        profiles.map(profile => 
-                                            `<option value="${profile.name}" ${profile.name === currentProfile ? 'selected' : ''}>${this.escapeHtml(profile.description || profile.name)}</option>`
-                                        ).join('') : 
-                                        '<option value="">No profiles available</option>'
-                                    }
-                                </select>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            renderApplications() {
-                const container = document.getElementById('apps-container');
-                
-                if (this.appIds.length === 0) {
-                    container.innerHTML = '<div class="no-apps">No applications with audio found</div>';
-                    return;
-                }
-
-                // Sort app IDs by internal ID (numeric)
-                const sortedAppIds = [...this.appIds].sort((a, b) => parseInt(a) - parseInt(b));
-
-                container.innerHTML = sortedAppIds.map(appId => {
-                    const appData = this.lightData.applications[appId];
-                    if (!appData) {
-                        return `<div class="app-container" data-app-id="${appId}">
-                            <div class="app-header">
-                                <div class="app-name">Loading...</div>
-                            </div>
-                        </div>`;
-                    }
-
-                    const name = appData.name || `App ${appId}`;
-                    const pid = appData.pid || 'Unknown';
-                    const volume = appData.volume || 0;
-                    const muted = appData.muted || false;
-                    const sinkId = appData.sink_id || '';
-                    const status = appData.status || false;
-                    const statusClass = status ? 'status-active' : 'status-inactive';
-                    const statusText = status ? 'Active' : 'Inactive';
-
-                    return `
-                        <div class="app-container" data-app-id="${appId}">
-                            <div class="app-header">
-                                <div>
-                                    <div class="app-name">
-                                        <span class="status-indicator ${statusClass}" data-app-id="${appId}"></span>
-                                        ${this.escapeHtml(name)}
-                                        <span class="status-label" data-app-id="${appId}">${statusText}</span>
-                                    </div>
-                                    <div class="app-pid">PID: ${pid}</div>
-                                </div>
-                                <button class="mute-button ${muted ? 'muted' : ''}" 
-                                        onclick="controller.toggleAppMute('${appId}')">
-                                    ${muted ? '🔇 Unmute' : '🔊 Mute'}
-                                </button>
-                            </div>
-                            <div style="margin-bottom: 10px;">
-                                <label style="font-size: 0.8em; color: #6c757d; margin-right: 8px;">Output:</label>
-                                <select class="sink-selector" data-app-id="${appId}" onchange="controller.moveAppToSink('${appId}', this.value)">
-                                    ${this.sinkIds.map(sinkId => {
-                                        const sinkData = this.lightData.sinks[sinkId];
-                                        const sinkName = sinkData?.name || `Sink ${sinkId}`;
-                                        return `<option value="${sinkId}" ${sinkId === sinkId ? 'selected' : ''}>${this.escapeHtml(sinkName)}</option>`;
-                                    }).join('')}
-                                </select>
-                            </div>
-                            <div class="volume-control">
-                                <input type="range" 
-                                       class="volume-slider" 
-                                       min="0" 
-                                       max="100" 
-                                       value="${volume}"
-                                       oninput="controller.setAppVolume('${appId}', this.value)"
-                                       ${muted ? 'disabled' : ''}>
-                                <div class="volume-display">${volume}%</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-
-
-
-
+                },
 
             handleListUpdate(ids) {
-                // Check if this is the first list update (no IDs stored yet)
+                    // Check if this is the first list update
                 const isFirstUpdate = this.sinkIds.length === 0 && this.appIds.length === 0 && this.cardIds.length === 0;
                 
                 if (isFirstUpdate) {
@@ -730,11 +661,11 @@
                 this.appIds = ids.applications || [];
                 this.cardIds = ids.cards || [];
                 
-                // Re-render to reflect any changes
-                this.renderSinks();
-                this.renderApplications();
-                this.renderCards();
-            }
+                    // Update loading states
+                    this.loading.sinks = this.sinkIds.length === 0;
+                    this.loading.applications = this.appIds.length === 0;
+                    this.loading.cards = this.cardIds.length === 0;
+                },
 
             handleLightDataUpdate(data) {
                 // Update light data (volumes, mute states, status)
@@ -769,14 +700,9 @@
                     }
                 }
                 
-                // Update status indicators from merged data
-                this.updateStatusFromLightData(data);
-                
-                // Re-render to show updated data
-                this.renderSinks();
-                this.renderApplications();
-                this.renderCards();
-            }
+                    // Update reactive arrays
+                    this.updateReactiveArrays();
+                },
 
             handleDetailedData(data) {
                 // Update light data with detailed information
@@ -802,7 +728,7 @@
                 }
                 if (data.cards) {
                     for (const [cardId, cardData] of Object.entries(data.cards)) {
-                        // Merge with existing data to preserve any light data updates
+                            // Merge with existing data to preserve any detailed information
                         if (this.lightData.cards[cardId]) {
                             this.lightData.cards[cardId] = { ...this.lightData.cards[cardId], ...cardData };
                         } else {
@@ -813,11 +739,56 @@
                 
                 console.log('Detailed data received and merged');
                 
-                // Re-render to show updated data
-                this.renderSinks();
-                this.renderApplications();
-                this.renderCards();
-            }
+                    // Update reactive arrays
+                    this.updateReactiveArrays();
+                },
+
+                updateReactiveArrays() {
+                    // Update sinks array
+                    this.sinks = this.sinkIds
+                        .sort((a, b) => parseInt(a) - parseInt(b))
+                        .map(sinkId => {
+                            const sinkData = this.lightData.sinks[sinkId];
+                            return {
+                                id: sinkId,
+                                name: sinkData?.name || `Sink ${sinkId}`,
+                                volume: sinkData?.volume || 0,
+                                muted: sinkData?.muted || false,
+                                is_default: sinkData?.is_default || false,
+                                status: sinkData?.status || false
+                            };
+                        });
+
+                    // Update applications array
+                    this.applications = this.appIds
+                        .sort((a, b) => parseInt(a) - parseInt(b))
+                        .map(appId => {
+                            const appData = this.lightData.applications[appId];
+                            return {
+                                id: appId,
+                                name: appData?.name || `App ${appId}`,
+                                pid: appData?.pid || 'Unknown',
+                                volume: appData?.volume || 0,
+                                muted: appData?.muted || false,
+                                sink_id: appData?.sink_id || '',
+                                status: appData?.status || false
+                            };
+                        });
+
+                    // Update cards array
+                    this.cards = this.cardIds
+                        .sort((a, b) => parseInt(a) - parseInt(b))
+                        .map(cardId => {
+                            const cardData = this.lightData.cards[cardId];
+                            return {
+                                id: cardId,
+                                name: cardData?.name || `Card ${cardId}`,
+                                description: cardData?.description || '',
+                                current_profile: cardData?.current_profile || '',
+                                profiles: cardData?.profiles || []
+                            };
+                        });
+                },
 
             requestDetailedData(sinkIds, appIds, cardIds) {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -828,50 +799,9 @@
                         card_ids: cardIds
                     }));
                 }
-            }
+                },
 
-            updateStatusFromLightData(data) {
-                // Update sink status indicators from light data
-                if (data.sinks) {
-                    for (const [sinkId, sinkData] of Object.entries(data.sinks)) {
-                        if (sinkData.status !== undefined) {
-                            const indicator = document.querySelector(`[data-sink-id="${sinkId}"].status-indicator`);
-                            const label = document.querySelector(`[data-sink-id="${sinkId}"].status-label`);
-                            
-                            if (indicator && label) {
-                                if (sinkData.status) {
-                                    indicator.className = 'status-indicator status-active';
-                                    label.textContent = 'Active';
-                                } else {
-                                    indicator.className = 'status-indicator status-inactive';
-                                    label.textContent = 'Inactive';
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Update application status indicators from light data
-                if (data.applications) {
-                    for (const [appId, appData] of Object.entries(data.applications)) {
-                        if (appData.status !== undefined) {
-                            const indicator = document.querySelector(`[data-app-id="${appId}"].status-indicator`);
-                            const label = document.querySelector(`[data-app-id="${appId}"].status-label`);
-                            
-                            if (indicator && label) {
-                                if (appData.status) {
-                                    indicator.className = 'status-indicator status-active';
-                                    label.textContent = 'Active';
-                                } else {
-                                    indicator.className = 'status-indicator status-inactive';
-                                    label.textContent = 'Inactive';
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
+                // Control methods
             setVolume(sinkId, volume) {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({
@@ -882,7 +812,20 @@
                 } else {
                     console.error('WebSocket not connected');
                 }
-            }
+                },
+
+                setVolumeThrottled(sinkId, volume) {
+                    // Clear existing timer for this sink
+                    if (this.volumeThrottleTimers[sinkId]) {
+                        clearTimeout(this.volumeThrottleTimers[sinkId]);
+                    }
+                    
+                    // Set new timer to send volume change after 100ms
+                    this.volumeThrottleTimers[sinkId] = setTimeout(() => {
+                        this.setVolume(sinkId, volume);
+                        delete this.volumeThrottleTimers[sinkId];
+                    }, 100);
+                },
 
             toggleMute(sinkId) {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -891,22 +834,35 @@
                         sink_id: sinkId
                     }));
                 }
-            }
+                },
 
-            setAppVolume(appId, volume) {
-                console.log(`Setting volume for app ${appId} to ${volume}%`);
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    const message = {
-                        type: 'set_app_volume',
-                        app_id: appId,
-                        volume: parseInt(volume)
-                    };
-                    console.log('Sending app volume message:', message);
-                    this.ws.send(JSON.stringify(message));
-                } else {
-                    console.error('WebSocket not connected');
-                }
-            }
+                setAppVolume(appId, volume) {
+                    console.log(`Setting volume for app ${appId} to ${volume}%`);
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        const message = {
+                            type: 'set_app_volume',
+                            app_id: appId,
+                            volume: parseInt(volume)
+                        };
+                        console.log('Sending app volume message:', message);
+                        this.ws.send(JSON.stringify(message));
+                    } else {
+                        console.error('WebSocket not connected');
+                    }
+                },
+
+                setAppVolumeThrottled(appId, volume) {
+                    // Clear existing timer for this app
+                    if (this.volumeThrottleTimers[`app_${appId}`]) {
+                        clearTimeout(this.volumeThrottleTimers[`app_${appId}`]);
+                    }
+                    
+                    // Set new timer to send volume change after 100ms
+                    this.volumeThrottleTimers[`app_${appId}`] = setTimeout(() => {
+                        this.setAppVolume(appId, volume);
+                        delete this.volumeThrottleTimers[`app_${appId}`];
+                    }, 100);
+                },
 
             toggleAppMute(appId) {
                 console.log(`Toggling mute for app ${appId}`);
@@ -918,7 +874,7 @@
                 } else {
                     console.error('WebSocket not connected');
                 }
-            }
+                },
 
             setDefaultSink(sinkId) {
                 console.log(`Setting default sink to ${sinkId}`);
@@ -930,7 +886,7 @@
                 } else {
                     console.error('WebSocket not connected');
                 }
-            }
+                },
 
             moveAppToSink(appId, sinkId) {
                 console.log(`Moving app ${appId} to sink ${sinkId}`);
@@ -943,8 +899,7 @@
                 } else {
                     console.error('WebSocket not connected');
                 }
-            }
-
+                },
 
             setCardProfile(cardId, profileName) {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -956,7 +911,7 @@
                 } else {
                     console.error('WebSocket not connected');
                 }
-            }
+                },
 
             refresh() {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -965,28 +920,8 @@
                     }));
                 }
             }
-
-            escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
             }
         }
-
-        // Initialize controller
-        const controller = new PulseAudioController();
-
-        // Global function for refresh button
-        function refreshData() {
-            controller.refresh();
-        }
-
-        // Handle page visibility change to reconnect if needed
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && (!controller.ws || controller.ws.readyState === WebSocket.CLOSED)) {
-                controller.connect();
-            }
-        });
     </script>
 </body>
 </html>
