@@ -756,7 +756,8 @@ def start_http_server():
     """Start the HTTP server for serving static files"""
     class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=os.path.dirname(os.path.abspath(__file__)), **kwargs)
+            static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+            super().__init__(*args, directory=static_dir, **kwargs)
         
         def end_headers(self):
             # Add CORS headers
